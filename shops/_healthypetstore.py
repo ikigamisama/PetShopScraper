@@ -14,6 +14,8 @@ class HealthyPetStoreETL(PetProductsETL):
         self.SELECTOR_SCRAPE_PRODUCT_INFO = '#wrapper'
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
         self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
+        self.wait_until = "domcontentloaded"
+        self.browser_type = 'firefox'
 
     def extract(self, category):
         url = self.BASE_URL + category
@@ -22,7 +24,7 @@ class HealthyPetStoreETL(PetProductsETL):
 
         if not soup:
             logger.error(f"[WARN] No content found for category: {category}")
-            return pd.DataFrame(columns=["shop", "url"])
+            return pd.DataFrame({})
 
         try:
             product_list = soup.find('ul', class_="products")
@@ -30,7 +32,7 @@ class HealthyPetStoreETL(PetProductsETL):
                 'href') for product in product_list.find_all('li', class_="product")]
         except AttributeError:
             logger.error(f"[ERROR] Unexpected page structure for: {url}")
-            return pd.DataFrame(columns=["shop", "url"])
+            return pd.DataFrame({})
 
         df = pd.DataFrame({"url": urls})
         df.insert(0, "shop", self.SHOP)

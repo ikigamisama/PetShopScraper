@@ -19,7 +19,8 @@ class JollyesETL(PetProductsETL):
 
     def extract(self, category):
         category_link = f"{self.BASE_URL}/{category}.html"
-        soup = asyncio.run(self.scrape(category_link, '#category'))
+        soup = asyncio.run(self.scrape(
+            category_link, '#category', wait_until="networkidle"))
 
         subcategory_links = [link["href"] for ul in soup.select(
             "ul.second-category") for link in ul.select("a")]
@@ -31,7 +32,7 @@ class JollyesETL(PetProductsETL):
             category_product_urls = []
 
             category_soup = asyncio.run(self.scrape(
-                url, '.product-list', wait_until="networkidle"))
+                url, '.product-list', wait_until="networkidle", min_sec=3, max_sec=5))
 
             if not category_soup:
                 logger.error(f"[ERROR] Failed to fetch or parse: {url}")
@@ -53,23 +54,25 @@ class JollyesETL(PetProductsETL):
 
             n_pagination = math.ceil(n_products / 100)
 
-            for n in range(1, n_pagination + 1):
-                product_soup = asyncio.run(self.scrape(
-                    f'{self.BASE_URL}{subcategory}?page={n}&perPage=100', '.product-list'))
+            product_tiles = category_soup.select("div[class*='product-tile']")
+            category_product_urls = [
+                self.BASE_URL + product_tile.find('a').get('href') for product_tile in product_tiles]
 
-                if not product_soup:
-                    logger.error(
-                        f"[ERROR] Failed to fetch or parse: {self.BASE_URL}{subcategory}?page={n}&perPage=100")
-                    continue
+            if n_pagination > 1:
+                for n in range(2, n_pagination + 1):
+                    product_soup = asyncio.run(self.scrape(
+                        f'{self.BASE_URL}{subcategory}?page={n}&perPage=100', '.product-list', wait_until="domcontentloaded", min_sec=3, max_sec=5))
 
-                product_tiles = product_soup.select(
-                    "div[class*='product-tile']")
+                    if not product_soup:
+                        logger.error(
+                            f"[ERROR] Failed to fetch or parse: {self.BASE_URL}{subcategory}?page={n}&perPage=100")
+                        continue
 
-                for product_tile in product_tiles:
-                    product_url = product_tile.select_one("a")
-                    if product_url:
-                        category_product_urls.append(
-                            self.BASE_URL + product_url["href"])
+                    product_tiles = product_soup.select(
+                        "div[class*='product-tile']")
+
+                    category_product_urls = [
+                        self.BASE_URL + product_tile.find('a').get('href') for product_tile in product_tiles]
 
             urls.extend(category_product_urls)
 

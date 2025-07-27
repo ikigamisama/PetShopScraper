@@ -132,7 +132,7 @@ class WebScraper:
                 "java_script_enabled": True,
                 "ignore_https_errors": True,
                 "extra_http_headers": self.get_headers(),
-                "timezone_id": "America/New_York",  # Consistent timezone
+                "timezone_id": "Europe/London",  # Consistent timezone
                 "permissions": ["geolocation"],
             }
 
