@@ -49,7 +49,7 @@ class JollyesETL(PetProductsETL):
                 })
 
                 await page.goto(url, wait_until="load")
-                await page.wait_for_selector(selector, timeout=30000)
+                await page.wait_for_selector(selector, timeout=60000)
 
                 logger.info(
                     "Starting to click 'Load More' button if available...")
@@ -135,8 +135,10 @@ class JollyesETL(PetProductsETL):
 
             product_links = asyncio.run(self.product_list_scrolling(
                 url, '.product-list', n_pagination))
-            urls.extend([self.BASE_URL + links.get('href')
-                        for links in product_links])
+
+            if product_links:
+                urls.extend([self.BASE_URL + links.get('href')
+                            for links in product_links])
 
         df = pd.DataFrame({"url": urls})
         df.insert(0, "shop", self.SHOP)
