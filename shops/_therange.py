@@ -30,7 +30,7 @@ class TheRangeETL(PetProductsETL):
             context = await p.chromium.launch_persistent_context(
                 user_data_dir=profile_dir,
                 channel="chrome",
-                headless=True,
+                headless=False,
                 no_viewport=True
             )
             page = context.pages[0]
