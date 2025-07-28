@@ -47,9 +47,7 @@ class PetProductsETL(ABC):
             logger.error(e)
             raise e
 
-    def get_product_infos(self):
-        temp_table = f"stg_{self.SHOP.lower()}_temp_products"
-
+    def extract_unscraped_data(self, temp_table):
         create_temp_sql = self.connection.get_sql_from_file(
             'create_temp_table_product_info.sql')
         create_temp_sql = create_temp_sql.format(
@@ -60,7 +58,25 @@ class PetProductsETL(ABC):
         sql = self.connection.get_sql_from_file('select_unscraped_urls.sql')
         sql = sql.format(shop=self.SHOP, table_name="urls")
 
-        df_urls = self.connection.extract_from_sql(sql)
+        return self.connection.extract_from_sql(sql)
+
+    def insert_scrape_in_database(self, temp_table):
+        for sql_file, label in [
+            ('insert_into_pet_products.sql', 'data product inserted'),
+            ('insert_into_pet_product_variants.sql',
+             'data product variant inserted'),
+            ('insert_into_pet_product_variant_prices.sql',
+             'data product price inserted')
+        ]:
+            sql = self.connection.get_sql_from_file(
+                sql_file).format(table_name=temp_table)
+            self._temp_table(sql, temp_table, label)
+
+        self._temp_table(f"DROP TABLE {temp_table};", temp_table, 'deleted')
+
+    def get_product_infos(self):
+        temp_table = f"stg_{self.SHOP.lower()}_temp_products"
+        df_urls = self.extract_unscraped_data(temp_table)
 
         for i, row in df_urls.iterrows():
             pkey = row["id"]
@@ -82,18 +98,7 @@ class PetProductsETL(ABC):
 
             logger.info(f"{i+1} out of {len(df_urls)} URL(s) Scraped")
 
-        for sql_file, label in [
-            ('insert_into_pet_products.sql', 'data product inserted'),
-            ('insert_into_pet_product_variants.sql',
-             'data product variant inserted'),
-            ('insert_into_pet_product_variant_prices.sql',
-             'data product price inserted')
-        ]:
-            sql = self.connection.get_sql_from_file(
-                sql_file).format(table_name=temp_table)
-            self._temp_table(sql, temp_table, label)
-
-        self._temp_table(f"DROP TABLE {temp_table};", temp_table, 'deleted')
+        self.insert_scrape_in_database(temp_table)
 
     def get_links_by_category(self):
         self.connection.execute_query(

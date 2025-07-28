@@ -1,3 +1,4 @@
+import os
 import asyncio
 import json
 import random
@@ -8,6 +9,8 @@ from bs4 import BeautifulSoup
 from loguru import logger
 from fake_useragent import UserAgent
 from playwright.async_api import async_playwright
+from datetime import datetime as dt
+from patchright.async_api import async_playwright as patch_async_playwright
 
 
 class TheRangeETL(PetProductsETL):
@@ -19,6 +22,25 @@ class TheRangeETL(PetProductsETL):
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
         self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
         self.browser_type = "chromium"
+
+    async def scrape_product_page(self, url, selector):
+        logger.info(f"Navigating to: {url}")
+        profile_dir = os.path.abspath("chrome_user_data")
+        async with patch_async_playwright() as p:
+            context = await p.chromium.launch_persistent_context(
+                user_data_dir=profile_dir,
+                channel="chrome",
+                headless=False,
+                no_viewport=True
+            )
+            page = context.pages[0]
+            await page.goto(url)
+            await page.wait_for_selector(selector)
+            html = await page.content()
+            # Interact with the page...
+            await context.close()
+        logger.success(f"Successfully extracted content from {url}")
+        return BeautifulSoup(html, "html.parser")
 
     async def get_data_variant(self, url):
         browser = None
@@ -117,6 +139,32 @@ class TheRangeETL(PetProductsETL):
         df.insert(0, "shop", self.SHOP)
         return df
 
+    def get_product_infos(self):
+        temp_table = f"stg_{self.SHOP.lower()}_temp_products"
+        df_urls = self.extract_unscraped_data(temp_table)
+
+        for i, row in df_urls.iterrows():
+            pkey = row["id"]
+            url = row["url"]
+
+            now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
+            soup = asyncio.run(self.scrape_product_page(
+                url, self.SELECTOR_SCRAPE_PRODUCT_INFO))
+
+            df = self.transform(soup, url)
+
+            if df is not None:
+                self.load(df, temp_table)
+                self.connection.update_url_scrape_status(
+                    pkey, "DONE", 'urls', now)
+            else:
+                self.connection.update_url_scrape_status(
+                    pkey, "FAILED", 'urls', now)
+
+            logger.info(f"{i+1} out of {len(df_urls)} URL(s) Scraped")
+
+        self.insert_scrape_in_database(temp_table)
+
     def transform(self, soup: BeautifulSoup, url: str):
         try:
             product_name = soup.find('h1', id="product-dyn-title").get_text()
@@ -128,7 +176,7 @@ class TheRangeETL(PetProductsETL):
             clean_url = url.split('#')[0]
 
             product_rating_soup = asyncio.run(self.scrape(
-                f'{clean_url}?action=loadreviews&pid={product_id}&page=1', 'body', wait_until='load', min_sec=self.MIN_SEC_SLEEP_PRODUCT_INFO, max_sec=self.MAX_SEC_SLEEP_PRODUCT_INFO))
+                f'{clean_url}?action=loadreviews&pid={product_id}&page=1', 'body'))
 
             if product_rating_soup.find('div', id="review-product-summary"):
                 product_rating = str(round((int(product_rating_soup.find('div', id="review-product-summary").findAll(
