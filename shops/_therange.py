@@ -30,7 +30,7 @@ class TheRangeETL(PetProductsETL):
             context = await p.chromium.launch_persistent_context(
                 user_data_dir=profile_dir,
                 channel="chrome",
-                headless=False,
+                headless=True,
                 no_viewport=True
             )
             page = context.pages[0]
@@ -95,16 +95,6 @@ class TheRangeETL(PetProductsETL):
         finally:
             if browser:
                 await browser.close()
-
-    async def get_json_product(self, url):
-        soup = await self.scrape(url, 'pre', wait_until='load', min_sec=self.MIN_SEC_SLEEP_PRODUCT_INFO, max_sec=self.MAX_SEC_SLEEP_PRODUCT_INFO, browser='chromium')
-        pre_tag = soup.find('pre')
-
-        if pre_tag:
-            json_text = pre_tag.get_text()
-            return json.loads(json_text)
-        else:
-            return None
 
     def extract(self, category):
         category_link = f"https://www.therange.co.uk{category}"
@@ -175,7 +165,7 @@ class TheRangeETL(PetProductsETL):
             product_id = soup.find('input', id="product_id").get('value')
             clean_url = url.split('#')[0]
 
-            product_rating_soup = asyncio.run(self.scrape(
+            product_rating_soup = asyncio.run(self.scrape_product_page(
                 f'{clean_url}?action=loadreviews&pid={product_id}&page=1', 'body'))
 
             if product_rating_soup.find('div', id="review-product-summary"):
@@ -188,8 +178,14 @@ class TheRangeETL(PetProductsETL):
             discount_percentages = []
             image_urls = []
 
-            product_details = asyncio.run(
-                self.get_json_product(f'{clean_url}?json'))
+            product_details_soup = asyncio.run(
+                self.scrape(f'{clean_url}?json', 'pre', wait_until='load', min_sec=self.MIN_SEC_SLEEP_PRODUCT_INFO, max_sec=self.MAX_SEC_SLEEP_PRODUCT_INFO, browser='chromium'))
+
+            pre_tag = product_details_soup.find('pre')
+
+            if pre_tag:
+                product_details = json.loads(pre_tag.get_text())
+
             if len(product_details['variant_arr']) > 1:
                 for var_details in product_details['variant_arr']:
                     if " - " in var_details['name']:
