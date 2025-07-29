@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from sqlalchemy.engine import Engine
 from .connection import Connection
 from .scraper import scrape_url
+from .proxy import ProxyRotator
 from loguru import logger
 from datetime import datetime as dt
 from bs4 import BeautifulSoup
@@ -23,8 +24,8 @@ class PetProductsETL(ABC):
         self.wait_until = "load"
         self.browser_type = 'chromium'
 
-    async def scrape(self, url, selector, headers=None, wait_until="load", min_sec=2, max_sec=5, browser="firefox"):
-        soup = await scrape_url(url, selector, headers, wait_until, min_sec=min_sec, max_sec=max_sec, browser=browser)
+    async def scrape(self, url, selector, proxy='', headers=None, wait_until="load", min_sec=2, max_sec=5, browser="firefox"):
+        soup = await scrape_url(url, selector, proxy, headers, wait_until, min_sec=min_sec, max_sec=max_sec, browser=browser)
         return soup if soup else False
 
     @abstractmethod
@@ -81,10 +82,11 @@ class PetProductsETL(ABC):
         for i, row in df_urls.iterrows():
             pkey = row["id"]
             url = row["url"]
+            proxy = asyncio.run(ProxyRotator().get_proxy())
 
             now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
             soup = asyncio.run(self.scrape(
-                url, self.SELECTOR_SCRAPE_PRODUCT_INFO, min_sec=self.MIN_SEC_SLEEP_PRODUCT_INFO, max_sec=self.MAX_SEC_SLEEP_PRODUCT_INFO, wait_until=self.wait_until, browser=self.browser_type))
+                url, self.SELECTOR_SCRAPE_PRODUCT_INFO, proxy=proxy, min_sec=self.MIN_SEC_SLEEP_PRODUCT_INFO, max_sec=self.MAX_SEC_SLEEP_PRODUCT_INFO, wait_until=self.wait_until, browser=self.browser_type))
 
             df = self.transform(soup, url)
 

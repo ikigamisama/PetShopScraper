@@ -1,11 +1,8 @@
-import os
 import sys
 import argparse
 import datetime as dt
 
 from loguru import logger
-from functions.connection import Connection
-
 from functions.factory import SHOPS, run_etl
 
 shop_choice = [i for i in SHOPS.keys()]

@@ -78,8 +78,10 @@ class ZooplusETL(PetProductsETL):
                 pagination_product_api = self.get_product_links(
                     pagination_url, headers=headers)
                 if pagination_product_api.status_code == 200:
-                    for products in pagination_product_api.json()['productList']['products']:
-                        urls.append(self.BASE_URL + products["path"])
+                    urls.extend([self.BASE_URL + products["path"]
+                                for products in pagination_product_api.json()['productList']['products']])
+                else:
+                    urls.extend([])
 
         df = pd.DataFrame({"url": urls})
         df.insert(0, "shop", self.SHOP)
@@ -88,7 +90,7 @@ class ZooplusETL(PetProductsETL):
     def transform(self, soup: BeautifulSoup, url: str):
         try:
             product_data = json.loads(soup.select(
-                "script[type*='application/ld+json']")[0].text)
+                "script[type*='application/ld+json']")[1].text)
             product_name = product_data['name']
             product_description = product_data['description']
             product_url = url.replace(self.BASE_URL, "")
