@@ -96,6 +96,7 @@ class WebScraper:
 
             # Get proxy
             proxy_settings = {"proxy": {"server": proxy}} if proxy else {}
+            logger.info(f"Using proxy {proxy}")
 
             # Enhanced browser arguments
             stealth_args = [
