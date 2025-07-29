@@ -18,8 +18,8 @@ class ZooplusETL(PetProductsETL):
         self.SHOP = "Zooplus"
         self.BASE_URL = "https://www.zooplus.co.uk"
         self.SELECTOR_SCRAPE_PRODUCT_INFO = '#page-content'
-        self.MIN_SEC_SLEEP_PRODUCT_INFO = 301
-        self.MAX_SEC_SLEEP_PRODUCT_INFO = 305
+        self.MIN_SEC_SLEEP_PRODUCT_INFO = 3
+        self.MAX_SEC_SLEEP_PRODUCT_INFO = 5
 
     def get_product_links(self, url, headers):
         try:

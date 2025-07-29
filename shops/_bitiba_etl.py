@@ -25,8 +25,8 @@ class BitibaETL(PetProductsETL):
         self.SHOP = "Bitiba"
         self.BASE_URL = "https://www.bitiba.co.uk"
         self.SELECTOR_SCRAPE_PRODUCT_INFO = 'main#page-content'
-        self.MIN_SEC_SLEEP_PRODUCT_INFO = 310
-        self.MAX_SEC_SLEEP_PRODUCT_INFO = 350
+        self.MIN_SEC_SLEEP_PRODUCT_INFO = 3
+        self.MAX_SEC_SLEEP_PRODUCT_INFO = 5
 
     @retry(
         wait=wait_exponential(
