@@ -20,6 +20,7 @@ class ZooplusETL(PetProductsETL):
         self.SELECTOR_SCRAPE_PRODUCT_INFO = '#page-content'
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
         self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
+        self.with_proxy = True
 
     def get_product_links(self, url, headers):
         try:
