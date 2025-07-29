@@ -63,7 +63,7 @@ class ScrapingError(Exception):
 
 class ProxyRotator:
     """Enhanced proxy management with rotation and validation"""
-
+    
     def __init__(self, cache_size: int = PROXY_CACHE_SIZE):
         self.proxies: List[ProxyInfo] = []
         self.cache_size = cache_size
@@ -75,7 +75,7 @@ class ProxyRotator:
     async def get_fresh_proxies(self) -> List[str]:
         """Get fresh proxies from multiple sources"""
         proxy_sources = []
-
+        
         # Source 1: FreeProxy
         try:
             proxy = FreeProxy(rand=True, timeout=2).get()
@@ -96,30 +96,29 @@ class ProxyRotator:
     async def _scrape_free_proxy_list(self) -> List[str]:
         """Scrape proxies from free-proxy-list.net"""
         try:
-            response = requests.get(
-                "https://www.proxy-list.download/api/v1/get?type=http", timeout=10)
+            response = requests.get("https://www.proxy-list.download/api/v1/get?type=http", timeout=10)
             if response.status_code == 200:
                 proxies = response.text.strip().split('\n')
                 return [f"http://{proxy.strip()}" for proxy in proxies if proxy.strip()]
         except Exception:
             pass
-
+        
         # Fallback to scraping HTML
         try:
             response = requests.get("https://free-proxy-list.net/", timeout=10)
             soup = BeautifulSoup(response.text, "html.parser")
-
+            
             table = soup.find('table', {'id': 'proxylisttable'})
             if not table:
                 return []
-
+                
             proxies = []
             for row in table.find('tbody').find_all('tr')[:20]:  # Limit to 20
                 cols = row.find_all('td')
                 if len(cols) >= 7 and cols[6].text.strip().lower() == "yes":
                     proxy = f"http://{cols[0].text.strip()}:{cols[1].text.strip()}"
                     proxies.append(proxy)
-
+            
             return proxies
         except Exception as e:
             logger.error(f"Error scraping free proxy list: {e}")
@@ -142,23 +141,21 @@ class ProxyRotator:
     async def validate_proxies_batch(self, proxy_list: List[str]) -> List[str]:
         """Validate multiple proxies concurrently"""
         valid_proxies = []
-
+        
         with ThreadPoolExecutor(max_workers=10) as executor:
             loop = asyncio.get_event_loop()
             tasks = [
-                loop.run_in_executor(
-                    executor, self._validate_proxy_sync, proxy)
+                loop.run_in_executor(executor, self._validate_proxy_sync, proxy)
                 for proxy in proxy_list
             ]
-
+            
             results = await asyncio.gather(*tasks, return_exceptions=True)
-
+            
             for proxy, is_valid in zip(proxy_list, results):
                 if is_valid is True:
                     valid_proxies.append(proxy)
-
-        logger.info(
-            f"Validated {len(valid_proxies)} out of {len(proxy_list)} proxies")
+                    
+        logger.info(f"Validated {len(valid_proxies)} out of {len(proxy_list)} proxies")
         return valid_proxies
 
     async def refresh_proxy_pool(self):
@@ -170,31 +167,27 @@ class ProxyRotator:
 
             logger.info("Refreshing proxy pool...")
             fresh_proxies = await self.get_fresh_proxies()
-
+            
             if fresh_proxies:
                 valid_proxies = await self.validate_proxies_batch(fresh_proxies)
-
+                
                 # Add new valid proxies
                 for proxy in valid_proxies:
                     if not any(p.proxy == proxy for p in self.proxies):
-                        self.proxies.append(
-                            ProxyInfo(proxy=proxy, last_used=0))
-
+                        self.proxies.append(ProxyInfo(proxy=proxy, last_used=0))
+                
                 # Remove failed proxies and keep only the best ones
-                self.proxies = [p for p in self.proxies if p.success_rate >
-                                0.3 or p.success_count + p.failure_count < 3]
-                self.proxies = sorted(self.proxies, key=lambda x: x.success_rate, reverse=True)[
-                    :self.cache_size]
-
+                self.proxies = [p for p in self.proxies if p.success_rate > 0.3 or p.success_count + p.failure_count < 3]
+                self.proxies = sorted(self.proxies, key=lambda x: x.success_rate, reverse=True)[:self.cache_size]
+                
                 self.last_refresh = current_time
-                logger.info(
-                    f"Proxy pool refreshed. Current pool size: {len(self.proxies)}")
+                logger.info(f"Proxy pool refreshed. Current pool size: {len(self.proxies)}")
 
     async def get_proxy(self) -> Optional[str]:
         """Get next available proxy with rotation"""
         if not self.proxies:
             await self.refresh_proxy_pool()
-
+            
         if not self.proxies:
             logger.warning("No proxies available")
             return None
@@ -209,11 +202,9 @@ class ProxyRotator:
                 available_proxies = self.proxies
 
             # Select proxy (round-robin with preference for better performing ones)
-            proxy_info = available_proxies[self.current_index % len(
-                available_proxies)]
-            self.current_index = (self.current_index +
-                                  1) % len(available_proxies)
-
+            proxy_info = available_proxies[self.current_index % len(available_proxies)]
+            self.current_index = (self.current_index + 1) % len(available_proxies)
+            
             proxy_info.last_used = time.time()
             return proxy_info.proxy
 
@@ -245,7 +236,7 @@ class WebScraper:
     def get_headers(self, headers=None) -> Dict[str, str]:
         """Generate realistic browser headers with better randomization"""
         user_agent = self.ua.random
-
+        
         # Browser-specific headers based on user agent
         if 'Chrome' in user_agent:
             sec_ch_ua = '"Not.A/Brand";v="24", "Chromium";v="122", "Google Chrome";v="122"'
@@ -280,14 +271,13 @@ class WebScraper:
         """Initialize browser with enhanced configuration"""
         if self.browser is None or self.pages_scraped >= self.restart_browser_every:
             await self.close_browser()
-
+            
             self.playwright_instance = await async_playwright().start()
-
+            
             # Get proxy
             self.current_proxy = await self.proxy_rotator.get_proxy()
-            proxy_settings = {
-                "proxy": {"server": self.current_proxy}} if self.current_proxy else {}
-
+            proxy_settings = {"proxy": {"server": self.current_proxy}} if self.current_proxy else {}
+            
             if self.current_proxy:
                 logger.info(f"Using proxy: {self.current_proxy}")
 
@@ -320,7 +310,7 @@ class WebScraper:
                         "browser.cache.memory.enable": False,
                         "media.autoplay.enabled": False,
                         "media.video_stats.enabled": False,
-
+                        
                         # Anti-detection
                         "dom.webdriver.enabled": False,
                         "media.navigator.enabled": False,
@@ -330,7 +320,7 @@ class WebScraper:
                         "general.platform.override": "Win32",
                         "general.appversion.override": "5.0 (Windows)",
                         "general.oscpu.override": "Windows NT 10.0; Win64; x64",
-
+                        
                         # Network optimizations
                         "network.http.pipelining": True,
                         "network.http.pipelining.maxrequests": 8,
@@ -372,16 +362,16 @@ class WebScraper:
         """Enhanced route handler for blocking unwanted resources"""
         url = route.request.url
         resource_type = route.request.resource_type
-
+        
         # Block unwanted resources
         block_patterns = [
             'analytics', 'ads', 'tracking', 'metrics', 'telemetry',
             'facebook.com', 'google-analytics', 'googletagmanager',
             'doubleclick.net', 'adsystem.com', 'amazon-adsystem.com'
         ]
-
+        
         block_types = ['image', 'media', 'font', 'other']
-
+        
         if any(pattern in url.lower() for pattern in block_patterns) or resource_type in block_types:
             await route.abort()
         else:
@@ -414,6 +404,24 @@ class WebScraper:
             except Exception:
                 pass  # Ignore click errors
 
+    async def force_new_proxy_and_browser(self):
+        """Force getting a new proxy and restart browser"""
+        logger.info("Forcing new proxy and browser restart...")
+        
+        # Mark current proxy as failed if it exists
+        if self.current_proxy:
+            await self.proxy_rotator.mark_proxy_result(self.current_proxy, False)
+            logger.info(f"Marked proxy {self.current_proxy} as failed")
+        
+        # Close current browser
+        await self.close_browser()
+        
+        # Force proxy pool refresh to get new proxies
+        await self.proxy_rotator.refresh_proxy_pool()
+        
+        # Reset pages counter to force browser restart
+        self.pages_scraped = self.restart_browser_every
+
     async def _extract_scrape_content(
         self,
         url: str,
@@ -440,31 +448,51 @@ class WebScraper:
             if headers:
                 await page.set_extra_http_headers(self.get_headers(headers))
 
-            logger.info(f"Navigating to: {url}")
+            logger.info(f"Navigating to: {url} with proxy: {self.current_proxy or 'No proxy'}")
 
             # Navigate with error handling
             try:
                 response = await page.goto(url, wait_until=wait_until, timeout=PAGE_LOAD_TIMEOUT)
             except Exception as e:
-                if "net::ERR_PROXY_CONNECTION_FAILED" in str(e) and self.current_proxy:
-                    await self.proxy_rotator.mark_proxy_result(self.current_proxy, False)
+                error_str = str(e).lower()
+                if any(err in error_str for err in ["proxy", "net::err_proxy", "connection_failed"]):
+                    if self.current_proxy:
+                        await self.proxy_rotator.mark_proxy_result(self.current_proxy, False)
+                        logger.warning(f"Proxy {self.current_proxy} connection failed, will try new proxy on retry")
                     raise ScrapingError(f"Proxy connection failed: {e}")
-                raise
+                raise ScrapingError(f"Navigation failed: {e}")
 
             if not response:
                 raise ScrapingError(f"No response received for {url}")
 
             status = response.status
+            logger.info(f"Response status: {status}")
+            
             if status == 404:
                 raise SkipScrape(f"Page not found (404): {url}")
-            elif status >= 400:
+            elif status == 403:
+                # 403 Forbidden - likely blocked, mark proxy as failed and force retry with new proxy
                 if self.current_proxy:
                     await self.proxy_rotator.mark_proxy_result(self.current_proxy, False)
+                    logger.warning(f"HTTP 403 - Proxy {self.current_proxy} likely blocked, will try new proxy on retry")
+                raise ScrapingError(f"HTTP 403 Forbidden - proxy likely blocked for {url}")
+            elif status == 429:
+                # Rate limited - mark proxy as failed
+                if self.current_proxy:
+                    await self.proxy_rotator.mark_proxy_result(self.current_proxy, False)
+                    logger.warning(f"HTTP 429 - Rate limited, marking proxy {self.current_proxy} as failed")
+                raise ScrapingError(f"HTTP 429 Rate Limited for {url}")
+            elif status >= 400:
+                # Other client/server errors
+                if self.current_proxy and status in [400, 401, 407, 408, 502, 503, 504]:
+                    await self.proxy_rotator.mark_proxy_result(self.current_proxy, False)
+                    logger.warning(f"HTTP {status} - Marking proxy {self.current_proxy} as failed")
                 raise ScrapingError(f"HTTP {status} error for {url}")
 
             # Mark proxy as successful if we got a good response
             if self.current_proxy and status < 400:
                 await self.proxy_rotator.mark_proxy_result(self.current_proxy, True)
+                logger.debug(f"Success with proxy {self.current_proxy}")
 
             if simulate_behavior:
                 await self.simulate_human_behavior(page, url)
@@ -475,29 +503,34 @@ class WebScraper:
                 await page.wait_for_selector(selector, timeout=timeout)
             except Exception as e:
                 # Try alternative selectors or continue without waiting
-                logger.warning(
-                    f"Selector '{selector}' not found, continuing anyway: {e}")
+                logger.warning(f"Selector '{selector}' not found, continuing anyway: {e}")
 
             # Extract content
             logger.info("Extracting page content...")
             rendered_html = await page.content()
             soup = BeautifulSoup(rendered_html, "html.parser")
-
+            
             self.pages_scraped += 1
-            logger.success(
-                f"Successfully extracted content from {url} (Pages scraped: {self.pages_scraped})")
+            logger.success(f"Successfully extracted content from {url} (Pages scraped: {self.pages_scraped})")
 
             return soup
 
         except asyncio.TimeoutError as e:
             if self.current_proxy:
                 await self.proxy_rotator.mark_proxy_result(self.current_proxy, False)
-            logger.error(f"Timeout for {url}: {e}")
+                logger.warning(f"Timeout with proxy {self.current_proxy}, marking as failed")
             raise ScrapingError(f"Timeout for {url}: {e}")
-
+            
+        except SkipScrape:
+            # Don't mark proxy as failed for 404s
+            raise
+            
         except Exception as e:
-            if self.current_proxy and "proxy" in str(e).lower():
+            error_str = str(e).lower()
+            if self.current_proxy and any(keyword in error_str for keyword in ["proxy", "connection", "blocked", "forbidden"]):
                 await self.proxy_rotator.mark_proxy_result(self.current_proxy, False)
+                logger.warning(f"Error likely proxy-related, marking {self.current_proxy} as failed")
+            
             logger.error(f"Error scraping {url}: {str(e)}")
             raise ScrapingError(f"Error scraping {url}: {str(e)}")
 
@@ -555,15 +588,23 @@ class WebScraper:
 
 
 @retry(
-    wait=wait_exponential(
-        multiplier=1, min=MIN_WAIT_BETWEEN_REQ, max=MAX_WAIT_BETWEEN_REQ),
+    wait=wait_exponential(multiplier=1, min=MIN_WAIT_BETWEEN_REQ, max=MAX_WAIT_BETWEEN_REQ),
     stop=stop_after_attempt(MAX_RETRIES),
     retry=retry_if_exception_type(ScrapingError),
     before_sleep=before_sleep_log(logger, "WARNING"),
     reraise=True,
 )
 async def retry_extract_scrape_content(scraper, *args, **kwargs):
-    return await scraper._extract_scrape_content(*args, **kwargs)
+    # Force new proxy and browser on retries for certain errors
+    try:
+        return await scraper._extract_scrape_content(*args, **kwargs)
+    except ScrapingError as e:
+        error_str = str(e).lower()
+        # Force new proxy for these specific errors before retrying
+        if any(keyword in error_str for keyword in ["403", "forbidden", "blocked", "proxy", "429", "rate limited"]):
+            logger.warning(f"Forcing new proxy due to error: {e}")
+            await scraper.force_new_proxy_and_browser()
+        raise
 
 
 class AsyncWebScraper:
@@ -579,12 +620,12 @@ class AsyncWebScraper:
 
 # Enhanced convenience functions
 async def scrape_url(
-    url: str,
-    selector: str,
-    headers: Optional[Dict[str, str]] = None,
-    wait_until: str = "domcontentloaded",
-    min_sec: float = 2,
-    max_sec: float = 5,
+    url: str, 
+    selector: str, 
+    headers: Optional[Dict[str, str]] = None, 
+    wait_until: str = "domcontentloaded", 
+    min_sec: float = 2, 
+    max_sec: float = 5, 
     browser: str = 'firefox'
 ) -> Optional[BeautifulSoup]:
     """Scrape a single URL with enhanced error handling"""
@@ -592,14 +633,13 @@ async def scrape_url(
         result = await scraper.extract_scrape_content(
             url, selector, headers=headers, wait_until=wait_until, browser=browser
         )
-
+        
         # Smart delay based on success
         if result is not None:
             delay = random.uniform(min_sec, max_sec)
         else:
-            # Longer delay on failure
-            delay = random.uniform(max_sec, max_sec * 2)
-
+            delay = random.uniform(max_sec, max_sec * 2)  # Longer delay on failure
+            
         if delay >= 60:
             minutes = int(delay // 60)
             seconds = delay % 60
@@ -612,22 +652,21 @@ async def scrape_url(
 
 
 async def scrape_urls_batch(
-    urls_and_selectors: List[Tuple[str, str]],
+    urls_and_selectors: List[Tuple[str, str]], 
     max_concurrent: int = 3,
     delay_range: Tuple[float, float] = (2, 5)
 ) -> List[Optional[BeautifulSoup]]:
     """Scrape multiple URLs with concurrency control"""
     semaphore = asyncio.Semaphore(max_concurrent)
-
+    
     async def scrape_with_semaphore(url: str, selector: str):
         async with semaphore:
             async with AsyncWebScraper() as scraper:
                 result = await scraper.extract_scrape_content(url, selector)
                 await asyncio.sleep(random.uniform(*delay_range))
                 return result
-
-    tasks = [scrape_with_semaphore(url, selector)
-             for url, selector in urls_and_selectors]
+    
+    tasks = [scrape_with_semaphore(url, selector) for url, selector in urls_and_selectors]
     return await asyncio.gather(*tasks, return_exceptions=True)
 
 
