@@ -186,16 +186,3 @@ class ProxyRotator:
 
             proxy_info.last_used = time.time()
             return proxy_info.proxy
-
-    async def mark_proxy_result(self, proxy: str, success: bool):
-        """Mark proxy as successful or failed"""
-        async with self._lock:
-            for proxy_info in self.proxies:
-                if proxy_info.proxy == proxy:
-                    if success:
-                        proxy_info.success_count += 1
-                    else:
-                        proxy_info.failure_count += 1
-                        if proxy_info.failure_count > 3:
-                            proxy_info.is_working = False
-                    break

@@ -90,72 +90,72 @@ class WebScraper:
 
     async def setup_browser(self, proxy, browser_type: str = "firefox") -> None:
         """Initialize browser with enhanced configuration"""
-        if self.browser is None:
+        self.browser = None
 
-            self.playwright_instance = await async_playwright().start()
+        self.playwright_instance = await async_playwright().start()
 
-            # Get proxy
-            proxy_settings = {"proxy": {"server": proxy}} if proxy else {}
+        logger.info(f"Using proxy {proxy}")
 
-            # Enhanced browser arguments
-            stealth_args = [
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--disable-sync",
-                "--disable-extensions",
-                "--disable-popup-blocking",
-                "--disable-background-timer-throttling",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-renderer-backgrounding",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--no-sandbox",
-                "--disable-web-security",
-                "--disable-features=VizDisplayCompositor",
-                "--disable-ipc-flooding-protection",
-            ]
+        # Get proxy
+        proxy_settings = {"proxy": {"server": proxy}} if proxy else {}
 
-            if browser_type == "firefox":
-                self.browser = await self.playwright_instance.firefox.launch(
-                    headless=True,
-                    args=stealth_args + ["--no-remote"],
-                    firefox_user_prefs={
-                        # Performance optimizations
-                        "permissions.default.image": 2,
-                        "browser.cache.disk.enable": False,
-                        "browser.cache.memory.enable": False,
-                        "media.autoplay.enabled": False,
-                        "media.video_stats.enabled": False,
+        # Enhanced browser arguments
+        stealth_args = [
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-sync",
+            "--disable-extensions",
+            "--disable-popup-blocking",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-web-security",
+            "--disable-features=VizDisplayCompositor",
+            "--disable-ipc-flooding-protection",
+        ]
 
-                        # Anti-detection
-                        "dom.webdriver.enabled": False,
-                        "media.navigator.enabled": False,
-                        "webgl.disabled": True,
-                        "privacy.trackingprotection.enabled": True,
-                        "geo.enabled": False,
-                        "general.platform.override": "Win32",
-                        "general.appversion.override": "5.0 (Windows)",
-                        "general.oscpu.override": "Windows NT 10.0; Win64; x64",
+        if browser_type == "firefox":
+            self.browser = await self.playwright_instance.firefox.launch(
+                headless=True,
+                args=stealth_args + ["--no-remote"],
+                firefox_user_prefs={
+                    # Performance optimizations
+                    "permissions.default.image": 2,
+                    "browser.cache.disk.enable": False,
+                    "browser.cache.memory.enable": False,
+                    "media.autoplay.enabled": False,
+                    "media.video_stats.enabled": False,
 
-                        # Network optimizations
-                        "network.http.pipelining": True,
-                        "network.http.pipelining.maxrequests": 8,
-                        "network.http.max-connections": 32,
-                    },
-                    **proxy_settings
-                )
-            else:
-                self.browser = await self.playwright_instance.chromium.launch(
-                    headless=True,
-                    args=stealth_args + [
-                        "--disable-blink-features=AutomationControlled",
-                        "--disable-infobars",
-                        "--disable-notifications",
-                    ],
-                    **proxy_settings
-                )
+                    # Anti-detection
+                    "dom.webdriver.enabled": False,
+                    "media.navigator.enabled": False,
+                    "webgl.disabled": True,
+                    "privacy.trackingprotection.enabled": True,
+                    "geo.enabled": False,
+                    "general.platform.override": "Win32",
+                    "general.appversion.override": "5.0 (Windows)",
+                    "general.oscpu.override": "Windows NT 10.0; Win64; x64",
 
-            self.pages_scraped = 0
+                    # Network optimizations
+                    "network.http.pipelining": True,
+                    "network.http.pipelining.maxrequests": 8,
+                    "network.http.max-connections": 32,
+                },
+                **proxy_settings
+            )
+        else:
+            self.browser = await self.playwright_instance.chromium.launch(
+                headless=True,
+                args=stealth_args + [
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-infobars",
+                    "--disable-notifications",
+                ],
+                **proxy_settings
+            )
 
         if self.context is None:
             context_options = {
@@ -235,7 +235,6 @@ class WebScraper:
 
         page = None
         try:
-            logger.info(f"Using proxy {proxy}")
             await self.setup_browser(proxy, browser)
 
             if not self.context:
