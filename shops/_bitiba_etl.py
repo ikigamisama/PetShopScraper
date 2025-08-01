@@ -128,7 +128,7 @@ class BitibaETL(PetProductsETL):
             product_data_list = soup.select(
                 "script[type*='application/ld+json']")
             if product_data_list:
-                product_data = json.loads(product_data_list[0].text)
+                product_data = json.loads(product_data_list[1].text)
 
                 product_title = product_data["name"]
                 rating = '0/5'

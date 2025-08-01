@@ -24,11 +24,11 @@ from loguru import logger
 nest_asyncio.apply()
 
 # Configuration constants
-MAX_RETRIES = 3
+MAX_RETRIES = 5
 MAX_WAIT_BETWEEN_REQ = 8
 MIN_WAIT_BETWEEN_REQ = 2
-REQUEST_TIMEOUT = 30000
-PAGE_LOAD_TIMEOUT = 30000
+REQUEST_TIMEOUT = 60000
+PAGE_LOAD_TIMEOUT = 60000
 
 MAX_PROXY_RETRIES = 10
 BROWSER_RESTART_INTERVAL = 20
@@ -96,7 +96,6 @@ class WebScraper:
 
             # Get proxy
             proxy_settings = {"proxy": {"server": proxy}} if proxy else {}
-            logger.info(f"Using proxy {proxy}")
 
             # Enhanced browser arguments
             stealth_args = [
@@ -236,6 +235,7 @@ class WebScraper:
 
         page = None
         try:
+            logger.info(f"Using proxy {proxy}")
             await self.setup_browser(proxy, browser)
 
             if not self.context:
@@ -283,7 +283,7 @@ class WebScraper:
         self,
         url: str,
         selector: str,
-        proxy: str,
+        proxy: bool,
         timeout: int = REQUEST_TIMEOUT,
         wait_until: str = "domcontentloaded",
         simulate_behavior: bool = True,
@@ -291,6 +291,7 @@ class WebScraper:
         browser: str = "firefox"
 
     ) -> Optional[BeautifulSoup]:
+
         try:
             return await retry_extract_scrape_content(
                 self, url, selector, proxy, timeout, wait_until, simulate_behavior, headers, browser
@@ -331,8 +332,9 @@ class WebScraper:
     before_sleep=before_sleep_log(logger, "WARNING"),
     reraise=True,
 )
-async def retry_extract_scrape_content(scraper, *args, **kwargs):
-    return await scraper._extract_scrape_content(*args, **kwargs)
+async def retry_extract_scrape_content(scraper, url, selector, proxy, timeout, wait_until, simulate_behavior, headers, browser):
+    generate_proxy = await ProxyRotator().get_proxy() if proxy == True else ''
+    return await scraper._extract_scrape_content(url, selector, generate_proxy, timeout, wait_until, simulate_behavior, headers, browser)
 
 
 class AsyncWebScraper:
@@ -350,7 +352,7 @@ class AsyncWebScraper:
 async def scrape_url(
     url: str,
     selector: str,
-    proxy: str,
+    proxy: bool,
     headers: Optional[Dict[str, str]] = None,
     wait_until: str = "domcontentloaded",
     min_sec: float = 2,

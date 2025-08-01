@@ -25,7 +25,7 @@ class PetProductsETL(ABC):
         self.browser_type = 'chromium'
         self.with_proxy = False
 
-    async def scrape(self, url, selector, proxy='', headers=None, wait_until="load", min_sec=2, max_sec=5, browser="firefox"):
+    async def scrape(self, url, selector, proxy, headers=None, wait_until="load", min_sec=2, max_sec=5, browser="firefox"):
         soup = await scrape_url(url, selector, proxy, headers, wait_until, min_sec=min_sec, max_sec=max_sec, browser=browser)
         return soup if soup else False
 
@@ -83,12 +83,10 @@ class PetProductsETL(ABC):
         for i, row in df_urls.iterrows():
             pkey = row["id"]
             url = row["url"]
-            proxy = asyncio.run(ProxyRotator().get_proxy()
-                                ) if self.with_proxy else ''
 
             now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
             soup = asyncio.run(self.scrape(
-                url, self.SELECTOR_SCRAPE_PRODUCT_INFO, proxy=proxy, min_sec=self.MIN_SEC_SLEEP_PRODUCT_INFO, max_sec=self.MAX_SEC_SLEEP_PRODUCT_INFO, wait_until=self.wait_until, browser=self.browser_type))
+                url, self.SELECTOR_SCRAPE_PRODUCT_INFO, proxy=self.with_proxy, min_sec=self.MIN_SEC_SLEEP_PRODUCT_INFO, max_sec=self.MAX_SEC_SLEEP_PRODUCT_INFO, wait_until=self.wait_until, browser=self.browser_type))
 
             df = self.transform(soup, url)
 
