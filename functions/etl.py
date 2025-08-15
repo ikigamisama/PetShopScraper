@@ -25,7 +25,7 @@ class PetProductsETL(ABC):
         self.browser_type = 'chromium'
         self.with_proxy = False
 
-    async def scrape(self, url, selector, proxy, headers=None, wait_until="load", min_sec=2, max_sec=5, browser="firefox"):
+    async def scrape(self, url, selector, proxy=None, headers=None, wait_until="load", min_sec=2, max_sec=5, browser="firefox"):
         soup = await scrape_url(url, selector, proxy, headers, wait_until, min_sec=min_sec, max_sec=max_sec, browser=browser)
         return soup if soup else False
 

@@ -21,7 +21,7 @@ class FarmAndPetPlaceETL(PetProductsETL):
         self.scraped_urls = set()
 
     def _process_soup(self, soup, source_url):
-        if soup.select_one("div.shop-filters-area"):
+        if soup.find("div", class_="shop-filters-area"):
             if source_url and source_url not in self.category_urls:
                 self.category_urls.append(source_url)
 
