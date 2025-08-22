@@ -20,7 +20,7 @@ class TheRangeETL(PetProductsETL):
         self.BASE_URL = "https://www.therange.co.uk"
         self.SELECTOR_SCRAPE_PRODUCT_INFO = '#product_reviews_section'
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
-        self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
+        self.MAX_SEC_SLEEP_PRODUCT_INFO = 2
         self.browser_type = "chromium"
 
     async def scrape_product_page(self, url, selector):

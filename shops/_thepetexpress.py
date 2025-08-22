@@ -13,16 +13,18 @@ class ThePetExpressETL(PetProductsETL):
         self.BASE_URL = "https://www.thepetexpress.co.uk"
         self.SELECTOR_SCRAPE_PRODUCT_INFO = '.product_page'
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
-        self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
+        self.MAX_SEC_SLEEP_PRODUCT_INFO = 2
 
     def extract(self, category):
         url = self.BASE_URL + category
         soup = asyncio.run(self.scrape(url, '.category-view'))
 
+        if not soup or isinstance(soup, bool):
+            return pd.DataFrame({})
+
         count_div = soup.find('div', class_="pagination--count")
         if not count_div:
-            logger.warning(f"[WARNING] Could not find product count on {url}")
-            return pd.DataFrame(columns=["shop", "url"])
+            return pd.DataFrame({})
 
         text = count_div.get_text(strip=True)
         match = re.search(r'[\d,]+', text)
@@ -30,10 +32,8 @@ class ThePetExpressETL(PetProductsETL):
 
         real_soup = asyncio.run(self.scrape(
             f"{url}?limit={product_count}", '.category-view'))
-        if not real_soup:
-            logger.error(
-                f"[ERROR] Failed to load full product list from {url}?limit={product_count}")
-            return pd.DataFrame(columns=["shop", "url"])
+        if not real_soup or isinstance(real_soup, bool):
+            return pd.DataFrame({})
 
         urls = []
         for links in real_soup.find_all('div', class_="category-page"):

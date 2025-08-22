@@ -16,7 +16,7 @@ class NaturesMenuETL(PetProductsETL):
         self.BASE_URL = "https://www.naturesmenu.co.uk"
         self.SELECTOR_SCRAPE_PRODUCT_INFO = '#maincontent'
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
-        self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
+        self.MAX_SEC_SLEEP_PRODUCT_INFO = 2
 
     import re
 

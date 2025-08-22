@@ -25,7 +25,7 @@ class PetProductsETL(ABC):
         self.browser_type = 'chromium'
         self.with_proxy = False
 
-    async def scrape(self, url, selector, proxy=None, headers=None, wait_until="load", min_sec=2, max_sec=5, browser="firefox"):
+    async def scrape(self, url, selector, proxy=None, headers=None, wait_until="load", min_sec=1, max_sec=3, browser='chromium'):
         soup = await scrape_url(url, selector, proxy, headers, wait_until, min_sec=min_sec, max_sec=max_sec, browser=browser)
         return soup if soup else False
 
@@ -76,7 +76,7 @@ class PetProductsETL(ABC):
 
         self._temp_table(f"DROP TABLE {temp_table};", temp_table, 'deleted')
 
-    def get_product_infos(self):
+    async def get_product_infos(self):
         temp_table = f"stg_{self.SHOP.lower()}_temp_products"
         df_urls = self.extract_unscraped_data(temp_table)
 
@@ -85,8 +85,8 @@ class PetProductsETL(ABC):
             url = row["url"]
 
             now = dt.now().strftime("%Y-%m-%d %H:%M:%S")
-            soup = asyncio.run(self.scrape(
-                url, self.SELECTOR_SCRAPE_PRODUCT_INFO, proxy=self.with_proxy, min_sec=self.MIN_SEC_SLEEP_PRODUCT_INFO, max_sec=self.MAX_SEC_SLEEP_PRODUCT_INFO, wait_until=self.wait_until, browser=self.browser_type))
+            soup = await self.scrape(
+                url, self.SELECTOR_SCRAPE_PRODUCT_INFO, proxy=self.with_proxy, min_sec=self.MIN_SEC_SLEEP_PRODUCT_INFO, max_sec=self.MAX_SEC_SLEEP_PRODUCT_INFO, wait_until=self.wait_until, browser=self.browser_type)
 
             df = self.transform(soup, url)
 

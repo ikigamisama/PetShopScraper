@@ -1,8 +1,8 @@
 {
 	"data": [
-		"/Dog/c/c000001",
-		"/Cat/c/c000002",
-		"/Small-Animals/c/c008034",
-		"/Birds/c/c008002"
+		"/collections/dog",
+		"/collections/cat",
+		"/collections/small-animals",
+		"/collections/bird"
 	]
 }

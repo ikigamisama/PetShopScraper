@@ -15,11 +15,15 @@ class PetShopOnlineETL(PetProductsETL):
         self.BASE_URL = "https://pet-shop-online.co.uk"
         self.SELECTOR_SCRAPE_PRODUCT_INFO = '.product-block-list'
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
-        self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
+        self.MAX_SEC_SLEEP_PRODUCT_INFO = 2
 
     def extract(self, category):
         url = self.BASE_URL+category
         soup = asyncio.run(self.scrape(url, '.product-list--collection'))
+
+        if not soup or isinstance(soup, bool):
+            return pd.DataFrame({})
+
         n_product = int(soup.find(
             'p', class_="collection__products-count").get_text().replace(' products', '').replace(' product', ''))
         pagination_length = math.ceil(n_product / 24)

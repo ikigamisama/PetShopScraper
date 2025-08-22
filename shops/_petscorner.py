@@ -14,7 +14,7 @@ class PetsCornerETL(PetProductsETL):
         self.BASE_URL = "https://www.petscorner.co.uk"
         self.SELECTOR_SCRAPE_PRODUCT_INFO = '#content'
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
-        self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
+        self.MAX_SEC_SLEEP_PRODUCT_INFO = 2
 
     def extract(self, category):
         category_link = f"{self.BASE_URL}{category}"
@@ -22,23 +22,17 @@ class PetsCornerETL(PetProductsETL):
 
         soup = asyncio.run(self.scrape(category_link, '.ProductListing'))
         if not soup:
-            logger.error(
-                f"[ERROR] Failed to scrape initial category page: {category_link}")
-            return pd.DataFrame(columns=["shop", "url"])
+            return pd.DataFrame({})
 
         try:
             total_text = soup.find('span', class_="total")
             if not total_text:
-                logger.warning(
-                    f"[WARNING] Could not find total product count on {category_link}")
-                return pd.DataFrame(columns=["shop", "url"])
+                return pd.DataFrame({})
 
             n_products = int(total_text.get_text().replace(' products', ''))
             n_pages = math.ceil(n_products / 48)
         except Exception as e:
-            logger.error(
-                f"[ERROR] Failed to parse product count from {category_link}: {e}")
-            return pd.DataFrame(columns=["shop", "url"])
+            return pd.DataFrame({})
 
         for p in range(1, n_pages + 1):
             page_url = f'{category_link}?listing_page={p}'
@@ -46,9 +40,7 @@ class PetsCornerETL(PetProductsETL):
                 self.scrape(page_url, '.ProductListing'))
 
             if not soup_pagination:
-                logger.warning(
-                    f"[WARNING] Skipping page {p} — failed to scrape {page_url}")
-                continue
+                return pd.DataFrame({})
 
             try:
                 product_divs = soup_pagination.find_all(
@@ -58,8 +50,6 @@ class PetsCornerETL(PetProductsETL):
                     if a_tag and a_tag.get('href'):
                         urls.append(self.BASE_URL + a_tag.get('href'))
             except Exception as e:
-                logger.error(
-                    f"[ERROR] Failed to parse products on page {p} ({page_url}): {e}")
                 continue
 
         df = pd.DataFrame({"url": urls})

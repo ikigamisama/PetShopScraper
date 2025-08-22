@@ -15,12 +15,15 @@ class FarmAndPetPlaceETL(PetProductsETL):
         self.BASE_URL = "https://www.farmandpetplace.co.uk"
         self.SELECTOR_SCRAPE_PRODUCT_INFO = '.content-page'
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
-        self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
+        self.MAX_SEC_SLEEP_PRODUCT_INFO = 2
         self.category_urls = []
         self.scrape_url_again = []
         self.scraped_urls = set()
 
     def _process_soup(self, soup, source_url):
+        if not soup or isinstance(soup, bool):
+            return
+
         if soup.find("div", class_="shop-filters-area"):
             if source_url and source_url not in self.category_urls:
                 self.category_urls.append(source_url)
@@ -53,8 +56,12 @@ class FarmAndPetPlaceETL(PetProductsETL):
 
         soup = asyncio.run(self.scrape(
             category, '.main-products-loop', wait_until='load',
-            min_sec=1, max_sec=3
+            min_sec=1, max_sec=2
         ))
+
+        if not soup or isinstance(soup, bool):
+            return pd.DataFrame({})
+
         self._process_soup(soup, category)
 
         if self.scrape_url_again:

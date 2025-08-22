@@ -1,5 +1,6 @@
 import sys
 import argparse
+import asyncio
 import datetime as dt
 
 from loguru import logger
@@ -38,7 +39,7 @@ if __name__ == "__main__":
         client.get_links_by_category()
 
     elif task == "scrape":
-        client.get_product_infos()
+        asyncio.run(client.get_product_infos())
 
     end_time = dt.datetime.now()
     duration = end_time - start_time

@@ -15,7 +15,7 @@ class OrijenETL(PetProductsETL):
         self.BASE_URL = "https://www.orijenpetfoods.co.uk"
         self.SELECTOR_SCRAPE_PRODUCT_INFO = 'form.variations_form'
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
-        self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
+        self.MAX_SEC_SLEEP_PRODUCT_INFO = 2
 
     def extract(self, category):
         url = self.BASE_URL+category

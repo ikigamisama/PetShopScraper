@@ -14,7 +14,7 @@ class AsdaETL(PetProductsETL):
         self.BASE_URL = "https://groceries.asda.com"
         self.SELECTOR_SCRAPE_PRODUCT_INFO = 'main.layout__main'
         self.MIN_SEC_SLEEP_PRODUCT_INFO = 1
-        self.MAX_SEC_SLEEP_PRODUCT_INFO = 3
+        self.MAX_SEC_SLEEP_PRODUCT_INFO = 2
 
     def extract(self, category):
         category_link = f"{self.BASE_URL}{category}"
@@ -22,29 +22,35 @@ class AsdaETL(PetProductsETL):
 
         soup = asyncio.run(self.scrape(category_link, '.layout__main'))
 
-        if soup.find('div', class_="co-pagination"):
-            n_pages = int(
-                soup.find('div', class_="co-pagination__max-page").text)
+        try:
 
-            for p in range(1, n_pages):
-                soup_page_pagination = asyncio.run(
-                    self.scrape(f"{category_link}?page={p}", '#main-content'))
-                for product_container in soup_page_pagination.find_all('ul', class_="co-product-list__main-cntr"):
+            if soup.find('div', class_="co-pagination"):
+                n_pages = int(
+                    soup.find('div', class_="co-pagination__max-page").text)
+
+                for p in range(1, n_pages):
+                    soup_page_pagination = asyncio.run(
+                        self.scrape(f"{category_link}?page={p}", '#main-content'))
+                    for product_container in soup_page_pagination.find_all('ul', class_="co-product-list__main-cntr"):
+                        for product_list in product_container.find_all('li'):
+                            if product_list.find('a'):
+                                urls.append(self.BASE_URL +
+                                            product_list.find('a').get('href'))
+
+            else:
+                for product_container in soup.find_all('ul', class_="co-product-list__main-cntr"):
                     for product_list in product_container.find_all('li'):
                         if product_list.find('a'):
                             urls.append(self.BASE_URL +
                                         product_list.find('a').get('href'))
 
-        else:
-            for product_container in soup.find_all('ul', class_="co-product-list__main-cntr"):
-                for product_list in product_container.find_all('li'):
-                    if product_list.find('a'):
-                        urls.append(self.BASE_URL +
-                                    product_list.find('a').get('href'))
+            df = pd.DataFrame({"url": urls})
+            df.insert(0, "shop", self.SHOP)
+            return df
 
-        df = pd.DataFrame({"url": urls})
-        df.insert(0, "shop", self.SHOP)
-        return df
+        except Exception as e:
+            logger.error(f"Error scraping {category_link}: {e}")
+            return pd.DataFrame({})
 
     def transform(self, soup: BeautifulSoup, url: str):
         try:
